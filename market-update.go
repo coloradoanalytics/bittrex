@@ -1,33 +1,83 @@
 package bittrex
 
 import (
+	"encoding/json"
+	//"fmt"
 	"sort"
+	"strconv"
+	"time"
 )
 
-func (m *Market) updateHandler(params UpdateMarketStateParams) {
-	if m.Ready != true {
+func (m *Market) subscribeToDeltas() error {
+	i := strconv.Itoa(time.Now().Nanosecond())
+
+	message := CallMethodMessage{
+		M: "subscribeToExchangeDeltas",
+		A: []string{m.MarketName},
+		I: i,
+		H: "coreHub",
+	}
+
+	msg, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+	m.StreamClient.WriteChan <- msg
+	return nil
+}
+
+func (m *Market) queryBook() error {
+	i := strconv.Itoa(time.Now().Nanosecond())
+
+	message := CallMethodMessage{
+		M: "queryExchangeState",
+		A: []string{m.MarketName},
+		I: i,
+		H: "coreHub",
+	}
+
+	msg, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	call := MethodCall{
+		Method: "queryExchangeState",
+		Caller: m,
+	}
+
+	m.StreamClient.MethodCalls.Set(i, call)
+	m.StreamClient.WriteChan <- msg
+	return nil
+}
+
+func (m *Market) updateHandler(update MarketUpdate, setState bool) {
+	//fmt.Println("updateHandler")
+	if m.Ready != true && !setState {
 		//currently out of sync, so record nonce and ignore update
-		m.LastNonce = params.Nonce
+		m.LastNonce = update.Nonce
 		return
 	}
 
-	if m.LastNonce == params.Nonce {
+	if m.LastNonce == update.Nonce && !setState {
 		//repeated record, ignore
 		return
 	}
 
-	if m.LastNonce+1 != params.Nonce {
+	if m.LastNonce+1 != update.Nonce && !setState {
 		//market is out of sync
 		m.Ready = false
-		err := m.fetchBook()
+		m.Bids = nil
+		m.Asks = nil
+		err := m.queryBook()
 		if err != nil {
 			m.OnError(err)
 		}
 		return
 	}
 
-	if len(params.BidUpdates) > 0 {
-		bidAdd, bidRemove, bidUpdate := separateRowUpdates(params.BidUpdates)
+	if len(update.BidUpdates) > 0 {
+		bidAdd, bidRemove, bidUpdate := separateRowUpdates(update.BidUpdates)
 		if len(bidAdd) > 0 {
 			m.addBids(bidAdd)
 		}
@@ -41,8 +91,8 @@ func (m *Market) updateHandler(params UpdateMarketStateParams) {
 		}
 	}
 
-	if len(params.AskUpdates) > 0 {
-		askAdd, askRemove, askUpdate := separateRowUpdates(params.AskUpdates)
+	if len(update.AskUpdates) > 0 {
+		askAdd, askRemove, askUpdate := separateRowUpdates(update.AskUpdates)
 		if len(askAdd) > 0 {
 			m.addAsks(askAdd)
 		}
@@ -56,11 +106,11 @@ func (m *Market) updateHandler(params UpdateMarketStateParams) {
 		}
 	}
 
-	if len(params.Fills) > 0 {
+	if len(update.Fills) > 0 {
 		//handle fills hook
 	}
 
-	m.LastNonce = params.Nonce
+	m.LastNonce = update.Nonce
 
 	m.OnUpdate(m)
 

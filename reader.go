@@ -2,29 +2,32 @@ package bittrex
 
 import (
 	"encoding/json"
+	//"fmt"
 )
 
 func (c *StreamClient) reader(startChan chan error) {
 	defer c.Conn.Close()
 	for {
-		_, m, err := c.Conn.ReadMessage()
+		_, msg, err := c.Conn.ReadMessage()
 		if err != nil {
 			c.ErrorHandler(err)
 		}
+
+		//fmt.Println(string(msg))
 
 		var message struct {
 			C string `json:"C,omitempty"` // present for persistent connection messages
 			I string `json:"I,omitempty"` // present for method result messages
 		}
 
-		err = json.Unmarshal([]byte(m), &message)
+		err = json.Unmarshal(msg, &message)
 		if err != nil {
 			c.ErrorHandler(err)
 		}
 
 		if message.C != "" {
 			var pcm PersistentConnectionMessage
-			err = json.Unmarshal(m, &pcm)
+			err = json.Unmarshal(msg, &pcm)
 			if err != nil {
 				c.ErrorHandler(err)
 			}
@@ -42,14 +45,14 @@ func (c *StreamClient) reader(startChan chan error) {
 				c.clientMethodHandler(calls)
 			}
 		} else if message.I != "" {
-			// c.MethodResultChan <- m
+			c.methodResultHandler(msg)
 		}
 	}
 }
 
 type PersistentConnectionMessage struct {
-	C string            //message id, present for all non-KeepAlive messages
-	M []json.RawMessage //an array containing actual data
-	S int               //indicates that the transport was initialized (a.k.a. init message)
-	G string            //groups token – an encrypted string representing group membership
+	C string          //message id, present for all non-KeepAlive messages
+	M json.RawMessage //an array containing actual data
+	S int             //indicates that the transport was initialized (a.k.a. init message)
+	G string          //groups token – an encrypted string representing group membership
 }

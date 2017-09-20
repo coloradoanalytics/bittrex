@@ -19,6 +19,7 @@ type StreamClient struct {
 	Conn                    *websocket.Conn
 	WriteChan               chan []byte
 	Markets                 map[string]*Market
+	MethodCalls             MethodCallMap
 	ErrorHandler            func(error)
 }
 
@@ -26,6 +27,9 @@ func NewStreamClient() *StreamClient {
 	client := StreamClient{
 		ProtocolVersion: "1.4",
 		ErrorHandler:    func(err error) { panic(err) },
+		WriteChan:       make(chan []byte, 20),
+		Markets:         make(map[string]*Market),
+		MethodCalls:     MethodCallMap{Callers: make(map[string]MethodCall)},
 	}
 
 	return &client
@@ -34,12 +38,14 @@ func NewStreamClient() *StreamClient {
 func (c *StreamClient) Connect() error {
 	err := c.negotiate()
 	if err != nil {
-		return err
+		//return err
+		return errors.New("problem with negotiate")
 	}
 
 	err = c.dial()
 	if err != nil {
-		return err
+		//return err
+		return errors.New("problem with dial")
 	}
 
 	startChan := make(chan error)
@@ -56,7 +62,10 @@ func (c *StreamClient) Connect() error {
 	case err = <-startChan:
 		timer.Stop()
 		close(startChan)
-		return err
+		if err != nil {
+			return errors.New("problem with start")
+		}
+		return nil
 	}
 
 }
@@ -79,7 +88,7 @@ func (c *StreamClient) negotiate() error {
 }
 
 func (c *StreamClient) dial() error {
-	u := url.URL{Scheme: "wss", Host: c.Host, Path: "/signalr/connect"}
+	u := url.URL{Scheme: "wss", Host: "www.bittrex.com", Path: "/signalr/connect"}
 
 	v := url.Values{}
 	v.Set("transport", "webSockets")
@@ -139,6 +148,14 @@ func (c *StreamClient) Close() error {
 	_, err := http.Get(u.String())
 
 	return err
+}
+
+type CallMethodMessage struct {
+	M string            //name of method
+	I string            //invocation identifier, a number to identify the response
+	H string            `json:"H,omitempty"` //name of hub
+	A []string          //arguments
+	S map[string]string //state – a dictionary containing additional custom data
 }
 
 func (c *StreamClient) writer() {

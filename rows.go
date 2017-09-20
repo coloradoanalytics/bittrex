@@ -18,7 +18,7 @@ func (r BookRowsAscending) Len() int {
 }
 
 func (r BookRowsAscending) Less(i, j int) bool {
-	return r[i].Price < o[j].Price
+	return r[i].Price < r[j].Price
 }
 
 func (r BookRowsAscending) Swap(i, j int) {
@@ -28,15 +28,15 @@ func (r BookRowsAscending) Swap(i, j int) {
 type BookRowsDescending []BookRow
 
 func (r BookRowsDescending) Len() int {
-	return len(o)
+	return len(r)
 }
 
 func (r BookRowsDescending) Less(i, j int) bool {
 	return r[i].Price > r[j].Price
 }
 
-func (o BookRowsDescending) Swap(i, j int) {
-	r[i], o[j] = r[j], r[i]
+func (r BookRowsDescending) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
 }
 
 func separateRowUpdates(rows []BookRowUpdate) ([]BookRowUpdate, []BookRowUpdate, []BookRowUpdate) {
