@@ -15,7 +15,7 @@ type Market struct {
 	LastNonce    int
 	StreamClient *StreamClient
 	OnError      func(error)
-	OnUpdate     func(*Market)
+	OnUpdate     func(*Market, MarketUpdate, bool)
 }
 
 func NewMarket(baseAsset string, marketAsset string, client *StreamClient) *Market {
@@ -24,8 +24,8 @@ func NewMarket(baseAsset string, marketAsset string, client *StreamClient) *Mark
 		MarketAsset:  marketAsset,
 		MarketName:   baseAsset + "-" + marketAsset,
 		StreamClient: client,
-		OnError:      func(err error) { panic(err) }, //default error handler
-		OnUpdate:     func(m *Market) {},             //default after-update hook
+		OnError:      func(err error) { panic(err) },              //default error handler
+		OnUpdate:     func(m *Market, mu MarketUpdate, s bool) {}, //default after-update hook
 	}
 
 	client.Markets[market.MarketName] = &market

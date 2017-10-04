@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+type MarketUpdate struct {
+	MarketName string          `json:"MarketName"`
+	Nonce      int             `json:"Nounce"`
+	BidUpdates []BookRowUpdate `json:"Buys"`
+	AskUpdates []BookRowUpdate `json:"Sells"`
+	Fills      []Fill          `json:"Fills"`
+}
+
 func (m *Market) subscribeToDeltas() error {
 	i := strconv.Itoa(time.Now().Nanosecond())
 
@@ -107,12 +115,12 @@ func (m *Market) updateHandler(update MarketUpdate, setState bool) {
 	}
 
 	if len(update.Fills) > 0 {
-		//handle fills hook
+		// TODO handle fills
 	}
 
 	m.LastNonce = update.Nonce
 
-	m.OnUpdate(m)
+	m.OnUpdate(m, update, setState)
 
 }
 

@@ -20,7 +20,7 @@ func (c *StreamClient) methodResultHandler(msg []byte) {
 	var result ServerMethodResult
 	err := json.Unmarshal(msg, &result)
 	if err != nil {
-		c.ErrorHandler(err)
+		c.OnError(err)
 	}
 
 	call, ok := c.MethodCalls.Get(result.I)

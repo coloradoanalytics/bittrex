@@ -10,14 +10,6 @@ type ClientMethodCall struct {
 	A json.RawMessage //method parameters
 }
 
-type MarketUpdate struct {
-	MarketName string          `json:"MarketName"`
-	Nonce      int             `json:"Nounce"`
-	BidUpdates []BookRowUpdate `json:"Buys"`
-	AskUpdates []BookRowUpdate `json:"Sells"`
-	Fills      []Fill          `json:"Fills"`
-}
-
 func (c *StreamClient) clientMethodHandler(calls []ClientMethodCall) {
 	for _, call := range calls {
 		switch call.M {
@@ -25,7 +17,7 @@ func (c *StreamClient) clientMethodHandler(calls []ClientMethodCall) {
 			var updates []MarketUpdate
 			err := json.Unmarshal(call.A, &updates)
 			if err != nil {
-				c.ErrorHandler(err)
+				c.OnError(err)
 			}
 			for _, u := range updates {
 				market, ok := c.Markets[u.MarketName]

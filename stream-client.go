@@ -20,13 +20,13 @@ type StreamClient struct {
 	WriteChan               chan []byte
 	Markets                 map[string]*Market
 	MethodCalls             MethodCallMap
-	ErrorHandler            func(error)
+	OnError                 func(error)
 }
 
 func NewStreamClient() *StreamClient {
 	client := StreamClient{
 		ProtocolVersion: "1.4",
-		ErrorHandler:    func(err error) { panic(err) },
+		OnError:         func(err error) { panic(err) },
 		WriteChan:       make(chan []byte, 20),
 		Markets:         make(map[string]*Market),
 		MethodCalls:     MethodCallMap{Callers: make(map[string]MethodCall)},
@@ -147,6 +147,10 @@ func (c *StreamClient) Close() error {
 	u.RawQuery = v.Encode()
 	_, err := http.Get(u.String())
 
+	if err != nil {
+		return err
+	}
+	err = c.Conn.Close()
 	return err
 }
 

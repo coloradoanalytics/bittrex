@@ -2,15 +2,22 @@ package bittrex
 
 import (
 	"encoding/json"
-	//"fmt"
+	"github.com/gorilla/websocket"
+	"log"
 )
 
 func (c *StreamClient) reader(startChan chan error) {
-	defer c.Conn.Close()
+	defer func() {
+		c.Conn.Close()
+	}()
+
 	for {
 		_, msg, err := c.Conn.ReadMessage()
 		if err != nil {
-			c.ErrorHandler(err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+				log.Println("error: %v", err)
+			}
+			break
 		}
 
 		//fmt.Println(string(msg))
@@ -22,14 +29,14 @@ func (c *StreamClient) reader(startChan chan error) {
 
 		err = json.Unmarshal(msg, &message)
 		if err != nil {
-			c.ErrorHandler(err)
+			c.OnError(err)
 		}
 
 		if message.C != "" {
 			var pcm PersistentConnectionMessage
 			err = json.Unmarshal(msg, &pcm)
 			if err != nil {
-				c.ErrorHandler(err)
+				c.OnError(err)
 			}
 
 			if pcm.S == 1 {
@@ -39,7 +46,7 @@ func (c *StreamClient) reader(startChan chan error) {
 				var calls []ClientMethodCall
 				err = json.Unmarshal(pcm.M, &calls)
 				if err != nil {
-					c.ErrorHandler(err)
+					c.OnError(err)
 				}
 
 				c.clientMethodHandler(calls)
